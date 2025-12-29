@@ -1,6 +1,6 @@
 import './FeaturesSection.css'
 import { Lightbulb, Target, BarChart3, Zap, FileText, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const features = [
   {
@@ -42,46 +42,77 @@ const features = [
 ]
 
 export default function FeaturesSection() {
-  const [isVisible, setIsVisible] = useState(false);
+  const [visibleCards, setVisibleCards] = useState(new Set());
+  const [headingVisible, setHeadingVisible] = useState(false);
+  const cardRefs = useRef([]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    // Observer for heading and subtitle
+    const headingObserver = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
+          setHeadingVisible(true);
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.3,
+        rootMargin: '0px 0px -100px 0px'
+      }
     );
 
-    const section = document.getElementById('features');
-    if (section) observer.observe(section);
+    const headingSection = document.getElementById('features-heading');
+    if (headingSection) headingObserver.observe(headingSection);
+
+    // Observer for individual cards
+    const cardObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const cardIndex = cardRefs.current.indexOf(entry.target);
+            setVisibleCards(prev => new Set([...prev, cardIndex]));
+          }
+        });
+      },
+      { 
+        threshold: 0.15,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    );
+
+    // Observe all cards
+    cardRefs.current.forEach((card) => {
+      if (card) cardObserver.observe(card);
+    });
 
     return () => {
-      if (section) observer.unobserve(section);
+      if (headingSection) headingObserver.unobserve(headingSection);
+      cardRefs.current.forEach((card) => {
+        if (card) cardObserver.unobserve(card);
+      });
     };
   }, []);
 
   return (
     <section id="features" className="features">
       <div className="features-container">
-        <h2 className={`features-heading ${isVisible ? 'animate-in' : ''}`}>
-          Why choose <span className="gradient-text">Resumind?</span>
-        </h2>
-        <p className={`features-subtitle ${isVisible ? 'animate-in' : ''}`}>
-          Everything you need to land your dream job
-        </p>
+        <div id="features-heading">
+          <h2 className={`features-heading ${headingVisible ? 'animate-in' : ''}`}>
+            Why choose <span className="gradient-text">Resumind?</span>
+          </h2>
+          <p className={`features-subtitle ${headingVisible ? 'animate-in' : ''}`}>
+            Everything you need to land your dream job
+          </p>
+        </div>
         <div className="features-grid">
           {features.map((feature, index) => {
             const IconComponent = feature.icon
             return (
               <div
                 key={feature.id}
-                className={`feature-card ${isVisible ? 'animate-in' : ''}`}
-                style={{
-                  animationDelay: isVisible ? `${index * 100}ms` : '0ms'
+                ref={(el) => {
+                  cardRefs.current[index] = el;
                 }}
+                className={`feature-card ${visibleCards.has(index) ? 'animate-in' : ''}`}
               >
                 <div className="feature-icon">
                   <IconComponent size={40} color="#6347eb" strokeWidth={1.5} />
